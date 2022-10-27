@@ -50,7 +50,7 @@ with open('groupDeletionLog.txt', 'w') as log:
                 print(f'Group {groupEmail} has no direct members and should probably be deleted')
                 print(f'Group {groupEmail} has no direct members and should probably be deleted', file=log)
                 # do a second check for members since there might be subgroup members
-                members = service.members().list(groupKey=groupEmail).execute().get('members') # get a member list of the group
+                members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members') # get a member list of the group
                 if members: # if there are results, its not actually a 0 member group
                     for user in members:
                         print(f'ERROR: found {user} in group {groupEmail}')
