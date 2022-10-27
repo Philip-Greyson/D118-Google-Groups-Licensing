@@ -39,31 +39,36 @@ service = build('admin', 'directory_v1', credentials=creds)
 
 
 # find suspended accounts, get all groups they are in, remove them from those groups
-with open('log.txt', 'w') as log:
+with open('suspendedUsersLog.txt', 'w') as log:
     newToken =  ''
     while newToken is not None: # do a while loop while we still have the next page token to get more results with
         userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=newToken, query="isSuspended=True").execute()
         newToken = userResults.get('nextPageToken')
         users = userResults.get('users', [])
         for user in users:
-            email = user.get('primaryEmail') # .get allows us to retrieve the value of one of the sub results
-            org = user.get('orgUnitPath')
-            inactive = user.get('suspended')
-            print(f'{email} - {org} - Suspended {inactive}')
-            print(f'{email} - {org} - Suspended {inactive}', file=log)  
+            try:
+                email = user.get('primaryEmail') # .get allows us to retrieve the value of one of the sub results
+                org = user.get('orgUnitPath')
+                inactive = user.get('suspended')
+                print(f'{email} - {org} - Suspended {inactive}')
+                print(f'{email} - {org} - Suspended {inactive}', file=log)  
 
-            if inactive == True:
-                userGroups = service.groups().list(userKey=email).execute().get('groups')
-                if userGroups:
-                    for group in userGroups:
-                        name = group.get('name')
-                        groupEmail = group.get('email')
-                        print(f'{email} is a member of: {name} - {groupEmail}')
-                        print(f'{email} is a member of: {name} - {groupEmail}',file=log)
-                        service.members().delete(groupKey=groupEmail, memberKey=email).execute()
+                if inactive == True:
+                    userGroups = service.groups().list(userKey=email).execute().get('groups')
+                    if userGroups:
+                        for group in userGroups:
+                            name = group.get('name')
+                            groupEmail = group.get('email')
+                            print(f'{email} is a member of: {name} - {groupEmail}')
+                            print(f'{email} is a member of: {name} - {groupEmail}',file=log)
+                            service.members().delete(groupKey=groupEmail, memberKey=email).execute()
+                    else:
+                        print('No groups')
+                        print('No groups', file=log)
                 else:
-                    print('No groups')
-                    print('No groups', file=log)
-            else:
-                print('Not actually suspended!')
-                print('Not actually suspended!', file=log)
+                    print('Not actually suspended!')
+                    print('Not actually suspended!', file=log)
+            except Exception as er:
+                print(f'ERROR: {er}')
+                print(f'ERROR: {er}',file=log)
+
