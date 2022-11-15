@@ -36,6 +36,9 @@ if not creds or not creds.valid:
 
 service = build('admin', 'directory_v1', credentials=creds)
 
+# define the min number of users a group can have before being deleted
+targetMemberCount = 1
+
 # find all groups in the domain, find ones that have 0 users, delete those groups
 with open('groupDeletionLog.txt', 'w') as log:
     groupToken = ''
@@ -45,13 +48,14 @@ with open('groupDeletionLog.txt', 'w') as log:
         groups = groupResults.get('groups')
         for group in groups:
             groupEmail = group.get('email')
-            memberCount = group.get('directMembersCount')
-            if memberCount == '0':
-                print(f'Group {groupEmail} has no direct members and should probably be deleted')
-                print(f'Group {groupEmail} has no direct members and should probably be deleted', file=log)
+            memberCount = int(group.get('directMembersCount'))
+            # print(memberCount)
+            if memberCount <= targetMemberCount:
+                print(f'Group {groupEmail} has {memberCount} direct members and should probably be deleted')
+                print(f'Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
                 # do a second check for members since there might be subgroup members
                 members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members') # get a member list of the group
-                if members: # if there are results, its not actually a 0 member group
+                if members and len(members) > targetMemberCount: # if there are results, its not actually a 0 member group
                     for user in members:
                         print(f'ERROR: found {user} in group {groupEmail}')
                         print(f'ERROR: found {user} in group {groupEmail}', file=log)
@@ -59,5 +63,5 @@ with open('groupDeletionLog.txt', 'w') as log:
                     print(f'Deleting {groupEmail}')
                     print(f'Deleting {groupEmail}',file=log)
                     service.groups().delete(groupKey=groupEmail).execute() # delete the group
-            # else:
-                # print(f'Group {groupEmail} has {memberCount} members')
+            else:
+                print(f'Group {groupEmail} has {memberCount} members')
