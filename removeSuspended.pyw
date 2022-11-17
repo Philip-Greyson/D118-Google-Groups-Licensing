@@ -13,6 +13,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from datetime import *
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/apps.licensing']
 
@@ -40,6 +42,10 @@ service = build('admin', 'directory_v1', credentials=creds)
 
 # find suspended accounts, get all groups they are in, remove them from those groups
 with open('suspendedUsersLog.txt', 'w') as log:
+    startTime = datetime.now()
+    startTime = startTime.strftime('%H:%M:%S')
+    print(f'Execution started at {startTime}')
+    print(f'Execution started at {startTime}', file=log)
     newToken =  ''
     while newToken is not None: # do a while loop while we still have the next page token to get more results with
         userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=newToken, query="isSuspended=True").execute()
@@ -71,4 +77,9 @@ with open('suspendedUsersLog.txt', 'w') as log:
             except Exception as er:
                 print(f'ERROR: {er}')
                 print(f'ERROR: {er}',file=log)
+
+    endTime = datetime.now()
+    endTime = endTime.strftime('%H:%M:%S')
+    print(f'Execution ended at {endTime}')
+    print(f'Execution ended at {endTime}', file=log)
 

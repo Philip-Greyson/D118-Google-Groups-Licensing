@@ -190,6 +190,10 @@ def processGroups(orgUnit):
 with oracledb.connect(user=un, password=pw, dsn=cs) as con: # create the connecton to the database
     with con.cursor() as cur:  # start an entry cursor
         with open('StaffGroupsLog.txt', 'w') as log:
+            startTime = datetime.now()
+            startTime = startTime.strftime('%H:%M:%S')
+            print(f'Execution started at {startTime}')
+            print(f'Execution started at {startTime}', file=log)
             # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
             cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
             schools = cur.fetchall()
@@ -220,3 +224,8 @@ with oracledb.connect(user=un, password=pw, dsn=cs) as con: # create the connect
             
             processGroups(staffOU) # process the staff groups for the main staff ou, this will also include any sub-ous
             processGroups('/Substitute Teachers') # process the staff groups for the subs ou
+
+            endTime = datetime.now()
+            endTime = endTime.strftime('%H:%M:%S')
+            print(f'Execution ended at {endTime}')
+            print(f'Execution ended at {endTime}', file=log)

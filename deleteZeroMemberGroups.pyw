@@ -13,6 +13,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
+from datetime import *
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/admin.directory.orgunit', 'https://www.googleapis.com/auth/admin.directory.userschema', 'https://www.googleapis.com/auth/apps.licensing']
 
@@ -41,6 +43,10 @@ targetMemberCount = 1
 
 # find all groups in the domain, find ones that have 0 users, delete those groups
 with open('groupDeletionLog.txt', 'w') as log:
+    startTime = datetime.now()
+    startTime = startTime.strftime('%H:%M:%S')
+    print(f'Execution started at {startTime}')
+    print(f'Execution started at {startTime}', file=log)
     groupToken = ''
     while groupToken is not None:
         groupResults = service.groups().list(domain='d118.org', orderBy='email', pageToken=groupToken).execute()
@@ -65,3 +71,8 @@ with open('groupDeletionLog.txt', 'w') as log:
                     service.groups().delete(groupKey=groupEmail).execute() # delete the group
             else:
                 print(f'Group {groupEmail} has {memberCount} members')
+
+    endTime = datetime.now()
+    endTime = endTime.strftime('%H:%M:%S')
+    print(f'Execution ended at {endTime}')
+    print(f'Execution ended at {endTime}', file=log)
