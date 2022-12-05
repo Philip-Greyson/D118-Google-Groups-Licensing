@@ -65,15 +65,15 @@ with open('suspendedUsersLog.txt', 'w') as log:
                         for group in userGroups:
                             name = group.get('name')
                             groupEmail = group.get('email')
-                            print(f'{email} is a member of: {name} - {groupEmail}')
-                            print(f'{email} is a member of: {name} - {groupEmail}',file=log)
+                            print(f'ACTION: {email} is a member of: {name} - {groupEmail} and will be removed')
+                            print(f'ACTION: {email} is a member of: {name} - {groupEmail} and will be removed',file=log)
                             service.members().delete(groupKey=groupEmail, memberKey=email).execute()
                     else:
                         print('No groups')
                         print('No groups', file=log)
                 else:
-                    print('Not actually suspended!')
-                    print('Not actually suspended!', file=log)
+                    print('ERROR: Not actually suspended!')
+                    print('ERROR: Not actually suspended!', file=log)
             except Exception as er:
                 print(f'ERROR: {er}')
                 print(f'ERROR: {er}',file=log)
