@@ -79,7 +79,7 @@ def getGroupMembers(groupEmail):
 
 
 
-# go through all staff members in the OU, look at their school access lists, and see if they are in the groups they belong in
+# go through all student members in the OU, look at their school access lists, and see if they are in the groups they belong in
 def processGroups(orgUnit):
     userToken =  ''
     queryString = "orgUnitPath='" + orgUnit + "'" # have to have the orgUnit enclosed by its own set of quotes in order to work
