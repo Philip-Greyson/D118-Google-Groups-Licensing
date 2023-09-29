@@ -100,8 +100,8 @@ def processGroups(orgUnit):
                 securityGroup = str(user.get('customSchemas').get('Synchronization_Data').get('Staff_Group'))
                 homeschool = str(user.get('customSchemas').get('Synchronization_Data').get('Homeschool_ID')) # get their homeschool ID
                 accessList = accessListTotal.split(';') # split the access list by semicolon since that is the delimeter between entries
-                print(f'{email} should have access to: {accessList}') # debug
-                print(f'{email} should have access to: {accessList}', file=log) # debug
+                print(f'{email} should have access to: {accessList}, teacher flag = {teacher}') # debug
+                print(f'{email} should have access to: {accessList}, teacher flag = {teacher}', file=log) # debug
 
                 addBodyDict = {'email' : email, 'role' : 'MEMBER'} # define a dict for the member email and role type, which is this case is just their email and the normal member role
 
@@ -146,13 +146,23 @@ def processGroups(orgUnit):
                         teacherGroupEmail = schoolAbbreviations.get(schoolEntry) + teacherSuffix + emailSuffix
                         if schoolEntry in accessList: # if the school id number we are currently is in their access list, they should be a part of that school's groups
                             if teacher:
-                                print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}') # Debug
+                                print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}') # debug
+                                # print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}', file=log) # debug
                                 if not memberLists.get(teacherGroupEmail).get(email): # check and see if they are in the member list for the teacher group already, if not we want to add them
                                     print(f'ACTION: {email} currently not a member of {teacherGroupEmail}, will be added')
                                     print(f'ACTION: {email} currently not a member of {teacherGroupEmail}, will be added', file=log)
                                     service.members().insert(groupKey=teacherGroupEmail, body=addBodyDict).execute() # do the addition to the group
                             else: # if they are not a teacher they should just be in the staff group
-                                print(f'{email} should be in {staffGroupEmail}') # debug
+                                print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}') # debug
+                                # print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}', file=log) # debug
+                                if memberLists.get(teacherGroupEmail).get(email): # check and see if they are in the member list for teachers, if so we need to remove them
+                                    if memberLists.get(teacherGroupEmail).get(email) == 'MEMBER':
+                                        print(f'ACTION: {email} is currently a part of {teacherGroupEmail}, will be removed')
+                                        print(f'ACTION: {email} is currently a part of {teacherGroupEmail}, will be removed', file=log)
+                                        service.members().delete(groupKey=teacherGroupEmail, memberKey=email).execute() # do the removal from the group
+                                    else:
+                                        print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
+                                        print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
                             # do the staff group check for both teachers and non-teachers
                             if not memberLists.get(staffGroupEmail).get(email): # check and see if they are in the member list already for the staff group, if not we want to add them
                                     print(f'ACTION: {email} currently not a member of {staffGroupEmail}, will be added')
@@ -217,10 +227,15 @@ with oracledb.connect(user=un, password=pw, dsn=cs) as con: # create the connect
                 teacherGroup = entry + teacherSuffix + emailSuffix
                 getGroupMembers(staffGroup)
                 getGroupMembers(teacherGroup)
+                # print(staffGroup, file=log) # debug
+                # print(memberLists.get(staffGroup), file=log) # debug to see the actual member lists
+                # print(teacherGroup, file=log) # debug
+                # print(memberLists.get(teacherGroup), file=log) # debug to see the actual member lists
             getGroupMembers(allDistrictGroup) # get membership for the district wide group added to dict
             getGroupMembers(substituteGroup) # get membership for the district wide sub group added to dict
                 
             print(memberLists) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+            # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
             
             processGroups(staffOU) # process the staff groups for the main staff ou, this will also include any sub-ous
             processGroups('/Substitute Teachers') # process the staff groups for the subs ou
