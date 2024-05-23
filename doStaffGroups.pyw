@@ -1,5 +1,16 @@
-# Needs the google-api-python-client, google-auth-httplib2 and the google-auth-oauthlib
-# pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+"""Script to manage the email groups our students are part of.
+
+https://github.com/Philip-Greyson/D118-Google-Groups-Licensing
+
+Makes sure every student is a member of the all student group, then adds each student to their respective building and grad year group.
+It will also remove the student from the incorrect school and grad year group.
+Very similar in general to the staff group script.
+
+Needs the google-api-python-client, google-auth-httplib2 and the google-auth-oauthlib
+pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+also needs oracledb: pip install oracledb --upgrade
+"""
 
 import os  # needed for environement variable reading
 import os.path
@@ -15,10 +26,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
 # setup db connection
-un = 'PSNavigator'  # PSNavigator is read only, PS is read/write
-pw = os.environ.get('POWERSCHOOL_DB_PASSWORD')  # the password for the database account
-cs = os.environ.get('POWERSCHOOL_PROD_DB')  # the IP address, port, and database name to connect to
-print("Username: " + str(un) + " |Password: " + str(pw) + " |Server: " + str(cs))  # debug so we can see where oracle is trying to connect to/with
+DB_UN = os.environ.get('POWERSCHOOL_READ_USER')  # username for read-only database user
+DB_PW = os.environ.get('POWERSCHOOL_DB_PASSWORD')  # the password for the database account
+DB_CS = os.environ.get('POWERSCHOOL_PROD_DB')  # the IP address, port, and database name to connect to
+print(f"Database Username: {DB_UN} |Password: {DB_PW} |Server: {DB_CS}")  # debug so we can see where oracle is trying to connect to/with
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/apps.licensing']
@@ -97,8 +108,8 @@ def process_groups(org_unit: str) -> None:
                 # securityGroup = str(user.get('customSchemas').get('Synchronization_Data').get('Staff_Group'))  # get the security group number from custom schema field
                 homeschool = str(user.get('customSchemas').get('Synchronization_Data').get('Homeschool_ID'))  # get their homeschool ID
                 accessList = accessListTotal.split(';')  # split the access list by semicolon since that is the delimeter between entries
-                print(f'{email} should have access to: {accessList}, teacher flag = {teacher}')  # debug
-                print(f'{email} should have access to: {accessList}, teacher flag = {teacher}', file=log)  # debug
+                print(f'DBUG: {email} should have access to: {accessList}, teacher flag = {teacher}')  # debug
+                print(f'DBUG: {email} should have access to: {accessList}, teacher flag = {teacher}', file=log)  # debug
 
                 addBodyDict = {'email' : email, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
 
@@ -106,18 +117,18 @@ def process_groups(org_unit: str) -> None:
                 ####### SUBSTITUTES PROCESSING FOR SUBSTITUTES GROUP
                 if (staffType == 4) or (homeschool == '500'):  # 4 is the sub type in PS, 500 is our sub building
                     # check for membership to substitute group
-                    print(f'User should be in {substituteGroup} and not {allDistrictGroup}')
+                    print(f'DBUG: User {email} should be in {substituteGroup} and not {allDistrictGroup}')
                     if memberLists.get(allDistrictGroup).get(email):  # check and see if they are a part of the all district group, if so we want to remove them
                         if memberLists.get(allDistrictGroup).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                            print(f'ACTION: {email} currently a part of {allDistrictGroup}, will be removed')
-                            print(f'ACTION: {email} currently a part of {allDistrictGroup}, will be removed', file=log)
+                            print(f'INFO: {email} currently a part of {allDistrictGroup}, will be removed')
+                            print(f'INFO: {email} currently a part of {allDistrictGroup}, will be removed', file=log)
                             service.members().delete(groupKey=allDistrictGroup, memberKey=email).execute()  # do the removal from the group
                         else:
-                            print(f'WARNING: {email} is an elevated role in {allDistrictGroup} and will NOT be removed')
-                            print(f'WARNING: {email} is an elevated role in {allDistrictGroup} and will NOT be removed', file=log)
+                            print(f'WARN: {email} is an elevated role in {allDistrictGroup} and will NOT be removed')
+                            print(f'WARN: {email} is an elevated role in {allDistrictGroup} and will NOT be removed', file=log)
                     if not memberLists.get(substituteGroup).get(email):  # check and see if they are missing from the sub group, if so we want to add them
-                        print(f'ACTION: {email} currently not a member of {substituteGroup}, will be added')
-                        print(f'ACTION: {email} currently not a member of {substituteGroup}, will be added', file=log)
+                        print(f'INFO: {email} currently not a member of {substituteGroup}, will be added')
+                        print(f'INFO: {email} currently not a member of {substituteGroup}, will be added', file=log)
                         service.members().insert(groupKey=substituteGroup, body=addBodyDict).execute()  # do the addition to the group
                 ####### NORMAL STAFF PROCESSING FOR DISTRICT WIDE GROUP
                 else:  # if they are not a sub
@@ -125,15 +136,15 @@ def process_groups(org_unit: str) -> None:
                     print(f'User should be in {allDistrictGroup} and not {substituteGroup}')
                     if memberLists.get(substituteGroup).get(email):  # check and see if they are a part of the sub group, if so we want to remove them
                         if memberLists.get(substituteGroup).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                            print(f'ACTION: {email} currently a part of {substituteGroup}, will be removed')
-                            print(f'ACTION: {email} currently a part of {substituteGroup}, will be removed', file=log)
+                            print(f'INFO: {email} currently a part of {substituteGroup}, will be removed')
+                            print(f'INFO: {email} currently a part of {substituteGroup}, will be removed', file=log)
                             service.members().delete(groupKey=substituteGroup, memberKey=email).execute()  # do the removal from the group
                         else:
-                            print(f'WARNING: {email} is an elevated role in {substituteGroup} and will NOT be removed')
-                            print(f'WARNING: {email} is an elevated role in {substituteGroup} and will NOT be removed', file=log)
+                            print(f'WARN: {email} is an elevated role in {substituteGroup} and will NOT be removed')
+                            print(f'WARN: {email} is an elevated role in {substituteGroup} and will NOT be removed', file=log)
                     if not memberLists.get(allDistrictGroup).get(email):  # check and see if they are missing from the all district group, if so we want to add them
-                        print(f'ACTION: {email} currently not a member of {allDistrictGroup}, will be added')
-                        print(f'ACTION: {email} currently not a member of {allDistrictGroup}, will be added', file=log)
+                        print(f'INFO: {email} currently not a member of {allDistrictGroup}, will be added')
+                        print(f'INFO: {email} currently not a member of {allDistrictGroup}, will be added', file=log)
                         service.members().insert(groupKey=allDistrictGroup, body=addBodyDict).execute()  # do the addition to the group
 
                 # go through each school code : abbreviation pair to check membership for each building group
@@ -146,45 +157,45 @@ def process_groups(org_unit: str) -> None:
                                 print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}')  # debug
                                 # print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}', file=log) # debug
                                 if not memberLists.get(teacherGroupEmail).get(email):  # check and see if they are in the member list for the teacher group already, if not we want to add them
-                                    print(f'ACTION: {email} currently not a member of {teacherGroupEmail}, will be added')
-                                    print(f'ACTION: {email} currently not a member of {teacherGroupEmail}, will be added', file=log)
+                                    print(f'INFO: {email} currently not a member of {teacherGroupEmail}, will be added')
+                                    print(f'INFO: {email} currently not a member of {teacherGroupEmail}, will be added', file=log)
                                     service.members().insert(groupKey=teacherGroupEmail, body=addBodyDict).execute()  # do the addition to the group
                             else:  # if they are not a teacher they should just be in the staff group
                                 print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}')  # debug
                                 # print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}', file=log) # debug
                                 if memberLists.get(teacherGroupEmail).get(email):  # check and see if they are in the member list for teachers, if so we need to remove them
                                     if memberLists.get(teacherGroupEmail).get(email) == 'MEMBER':
-                                        print(f'ACTION: {email} is currently a part of {teacherGroupEmail}, will be removed')
-                                        print(f'ACTION: {email} is currently a part of {teacherGroupEmail}, will be removed', file=log)
+                                        print(f'INFO: {email} is currently a part of {teacherGroupEmail}, will be removed')
+                                        print(f'INFO: {email} is currently a part of {teacherGroupEmail}, will be removed', file=log)
                                         service.members().delete(groupKey=teacherGroupEmail, memberKey=email).execute()  # do the removal from the group
                                     else:
-                                        print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
-                                        print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
+                                        print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
+                                        print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
                             # do the staff group check for both teachers and non-teachers
                             if not memberLists.get(staffGroupEmail).get(email):  # check and see if they are in the member list already for the staff group, if not we want to add them
-                                    print(f'ACTION: {email} currently not a member of {staffGroupEmail}, will be added')
-                                    print(f'ACTION: {email} currently not a member of {staffGroupEmail}, will be added', file=log)
+                                    print(f'INFO: {email} currently not a member of {staffGroupEmail}, will be added')
+                                    print(f'INFO: {email} currently not a member of {staffGroupEmail}, will be added', file=log)
                                     service.members().insert(groupKey=staffGroupEmail, body=addBodyDict).execute()  # do the addition to the group
                         else:  # if they do not have the school number on their access list, they should not get access to the email groups
                             print(f'{email} should NOT be in {staffGroupEmail} or {teacherGroupEmail}')  # debug
                             # check both groups for their membership. If they are members, check and see if they are only members or if they are owners/managers. If they are only members, we remove them
                             if memberLists.get(staffGroupEmail).get(email):  # check and see if they are a part of the staff group, if so we want to remove them
                                 if memberLists.get(staffGroupEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                                    print(f'ACTION: {email} currently a part of {staffGroupEmail}, will be removed')
-                                    print(f'ACTION: {email} currently a part of {staffGroupEmail}, will be removed', file=log)
+                                    print(f'INFO: {email} currently a part of {staffGroupEmail}, will be removed')
+                                    print(f'INFO: {email} currently a part of {staffGroupEmail}, will be removed', file=log)
                                     service.members().delete(groupKey=staffGroupEmail, memberKey=email).execute()  # do the removal from the group
                                 else:
-                                    print(f'WARNING: {email} is an elevated role in {staffGroupEmail} and will NOT be removed')
-                                    print(f'WARNING: {email} is an elevated role in {staffGroupEmail} and will NOT be removed', file=log)
+                                    print(f'WARN: {email} is an elevated role in {staffGroupEmail} and will NOT be removed')
+                                    print(f'WARN: {email} is an elevated role in {staffGroupEmail} and will NOT be removed', file=log)
                             # do the same thing but for the teacher group
                             if memberLists.get(teacherGroupEmail).get(email):  # check and see if they are a part of the teacher group, if so we want to remove them
                                 if memberLists.get(teacherGroupEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                                    print(f'ACTION: {email} currently a part of {teacherGroupEmail}, will be removed')
-                                    print(f'ACTION: {email} currently a part of {teacherGroupEmail}, will be removed', file=log)
+                                    print(f'INFO: {email} currently a part of {teacherGroupEmail}, will be removed')
+                                    print(f'INFO: {email} currently a part of {teacherGroupEmail}, will be removed', file=log)
                                     service.members().delete(groupKey=teacherGroupEmail, memberKey=email).execute()  # do the removal from the group
                                 else:
-                                    print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
-                                    print(f'WARNING: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
+                                    print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
+                                    print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
 
                     except Exception as er:
                         print(f'ERROR: in building {schoolEntry} on user {email}, teacher {teacher}: {er}')
@@ -194,13 +205,13 @@ def process_groups(org_unit: str) -> None:
                 print(f'ERROR: on {user} - {er}',file=log)
 
 # main program
-with oracledb.connect(user=un, password=pw, dsn=cs) as con:  # create the connecton to the database
+with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
     with con.cursor() as cur:  # start an entry cursor
         with open('StaffGroupsLog.txt', 'w') as log:
             startTime = datetime.now()
             startTime = startTime.strftime('%H:%M:%S')
-            print(f'Execution started at {startTime}')
-            print(f'Execution started at {startTime}', file=log)
+            print(f'INFO: Execution started at {startTime}')
+            print(f'INFO: Execution started at {startTime}', file=log)
             # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
             cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
             schools = cur.fetchall()
@@ -239,5 +250,5 @@ with oracledb.connect(user=un, password=pw, dsn=cs) as con:  # create the connec
 
             endTime = datetime.now()
             endTime = endTime.strftime('%H:%M:%S')
-            print(f'Execution ended at {endTime}')
-            print(f'Execution ended at {endTime}', file=log)
+            print(f'INFO: Execution ended at {endTime}')
+            print(f'INFO: Execution ended at {endTime}', file=log)
