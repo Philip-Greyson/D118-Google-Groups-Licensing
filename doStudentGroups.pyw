@@ -176,54 +176,54 @@ def process_groups(org_unit: str) -> None:
                 print(f'ERROR: on {user} - {er}')
                 print(f'ERROR: on {user} - {er}',file=log)
 
-# main program
-with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
-    with con.cursor() as cur:  # start an entry cursor
-        with open('StudentGroupsLog.txt', 'w') as log:
-            startTime = datetime.now()
-            startTime = startTime.strftime('%H:%M:%S')
-            currentYear = int(datetime.now().strftime('%Y'))  # get current year for calculations of grad year classes
-            print(f'INFO: Execution started at {startTime}')
-            print(f'INFO: Execution started at {startTime}', file=log)
-            # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
-            cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
-            schools = cur.fetchall()
-            schoolAbbreviations = {}  # define a dict to store the school codes and abbreviations linked
-            for school in schools:
-                # store results in variables mostly just for readability
-                schoolAbbrev = school[0].lower()  # convert to lower case since email groups are all lower
-                schoolNum = str(school[1])
-                # print(f'School {schoolAbbrev} - Code {schoolNum}')
-                schoolAbbreviations.update({schoolNum : schoolAbbrev})
-            print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}')
-            print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}', file=log)
+if __name__ == '__main__':  # main file execution
+    with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
+        with con.cursor() as cur:  # start an entry cursor
+            with open('StudentGroupsLog.txt', 'w') as log:
+                startTime = datetime.now()
+                startTime = startTime.strftime('%H:%M:%S')
+                currentYear = int(datetime.now().strftime('%Y'))  # get current year for calculations of grad year classes
+                print(f'INFO: Execution started at {startTime}')
+                print(f'INFO: Execution started at {startTime}', file=log)
+                # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
+                cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
+                schools = cur.fetchall()
+                schoolAbbreviations = {}  # define a dict to store the school codes and abbreviations linked
+                for school in schools:
+                    # store results in variables mostly just for readability
+                    schoolAbbrev = school[0].lower()  # convert to lower case since email groups are all lower
+                    schoolNum = str(school[1])
+                    # print(f'School {schoolAbbrev} - Code {schoolNum}')
+                    schoolAbbreviations.update({schoolNum : schoolAbbrev})
+                print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}')
+                print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}', file=log)
 
-            memberLists = {}  # make a master dict for group memberships, that will have sub-dict sof each member and their role as its values
-            gradYears = []  # make an array that will hold the next 14 years to have as reference for graduation years
+                memberLists = {}  # make a master dict for group memberships, that will have sub-dict sof each member and their role as its values
+                gradYears = []  # make an array that will hold the next 14 years to have as reference for graduation years
 
-            for i in range(17):
-                gradYears.append(currentYear + (i-1))  # start with 0 (-1) from the current year and go through the next 15 years
+                for i in range(17):
+                    gradYears.append(currentYear + (i-1))  # start with 0 (-1) from the current year and go through the next 15 years
 
-            print(f'DBUG: The graduation years in range: {gradYears}')  # debug
-            print(f'DBUG: The graduation years in range: {gradYears}', file=log)  # debug
+                print(f'DBUG: The graduation years in range: {gradYears}')  # debug
+                print(f'DBUG: The graduation years in range: {gradYears}', file=log)  # debug
 
-            # find the members of each group once at the start so we do not have to constantly query via the api whether a user is a member, we can just do a list comparison
-            for entry in schoolAbbreviations.values():
-                # go through each school abbreviation and find their student group
-                studentGroup = entry + studentSuffix + emailSuffix
-                get_group_members(studentGroup)
+                # find the members of each group once at the start so we do not have to constantly query via the api whether a user is a member, we can just do a list comparison
+                for entry in schoolAbbreviations.values():
+                    # go through each school abbreviation and find their student group
+                    studentGroup = entry + studentSuffix + emailSuffix
+                    get_group_members(studentGroup)
 
-            for year in gradYears:
-                classGroup = gradYearPrefix + str(year) + emailSuffix
-                get_group_members(classGroup)
+                for year in gradYears:
+                    classGroup = gradYearPrefix + str(year) + emailSuffix
+                    get_group_members(classGroup)
 
-            get_group_members(allStudentGroup)  # get membership for the district wide student group added to dict
+                get_group_members(allStudentGroup)  # get membership for the district wide student group added to dict
 
-            print(memberLists)  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
-            # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
-            process_groups(studentOU)  # process the student groups for the main student OU, this will also include any sub-OUs
+                print(memberLists)  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                process_groups(studentOU)  # process the student groups for the main student OU, this will also include any sub-OUs
 
-            endTime = datetime.now()
-            endTime = endTime.strftime('%H:%M:%S')
-            print(f'INFO: Execution ended at {endTime}')
-            print(f'INFO: Execution ended at {endTime}', file=log)
+                endTime = datetime.now()
+                endTime = endTime.strftime('%H:%M:%S')
+                print(f'INFO: Execution ended at {endTime}')
+                print(f'INFO: Execution ended at {endTime}', file=log)

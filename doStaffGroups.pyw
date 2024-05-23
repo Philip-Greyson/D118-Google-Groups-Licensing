@@ -204,51 +204,51 @@ def process_groups(org_unit: str) -> None:
                 print(f'ERROR: on {user} - {er}')
                 print(f'ERROR: on {user} - {er}',file=log)
 
-# main program
-with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
-    with con.cursor() as cur:  # start an entry cursor
-        with open('StaffGroupsLog.txt', 'w') as log:
-            startTime = datetime.now()
-            startTime = startTime.strftime('%H:%M:%S')
-            print(f'INFO: Execution started at {startTime}')
-            print(f'INFO: Execution started at {startTime}', file=log)
-            # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
-            cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
-            schools = cur.fetchall()
-            schoolAbbreviations = {}  # define a dict to store the school codes and abbreviations linked
-            for school in schools:
-                # store results in variables mostly just for readability
-                schoolAbbrev = school[0].lower()  # convert to lower case since email groups are all lower
-                schoolNum = str(school[1])
-                # print(f'School {schoolAbbrev} - Code {schoolNum}')
-                schoolAbbreviations.update({schoolNum : schoolAbbrev})
-            # schoolAbbreviations.update({'0': 'd118'} ) # add in another abbreviation for the district wide groups
-            print(schoolAbbreviations)
-            print(schoolAbbreviations, file=log)
+if __name__ == '__main__':  # main file execution
+    with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
+        with con.cursor() as cur:  # start an entry cursor
+            with open('StaffGroupsLog.txt', 'w') as log:
+                startTime = datetime.now()
+                startTime = startTime.strftime('%H:%M:%S')
+                print(f'INFO: Execution started at {startTime}')
+                print(f'INFO: Execution started at {startTime}', file=log)
+                # Start by getting a list of schools id's and abbreviations for the "real" schools which are not excluded from state reporting
+                cur.execute('SELECT abbreviation, school_number FROM schools WHERE State_ExcludeFromReporting = 0')
+                schools = cur.fetchall()
+                schoolAbbreviations = {}  # define a dict to store the school codes and abbreviations linked
+                for school in schools:
+                    # store results in variables mostly just for readability
+                    schoolAbbrev = school[0].lower()  # convert to lower case since email groups are all lower
+                    schoolNum = str(school[1])
+                    # print(f'School {schoolAbbrev} - Code {schoolNum}')
+                    schoolAbbreviations.update({schoolNum : schoolAbbrev})
+                # schoolAbbreviations.update({'0': 'd118'} ) # add in another abbreviation for the district wide groups
+                print(schoolAbbreviations)
+                print(schoolAbbreviations, file=log)
 
-            memberLists = {}  # make a master dict for group memberships, that will have sub-dict sof each member and their role as its values
+                memberLists = {}  # make a master dict for group memberships, that will have sub-dict sof each member and their role as its values
 
-            # find the members of each group once at the start so we do not have to constantly query via the api whether a user is a member, we can just do a list comparison
-            for entry in schoolAbbreviations.values():
-                # go through each school abbreviation and find their staff group
-                staffGroup = entry + staffSuffix + emailSuffix
-                teacherGroup = entry + teacherSuffix + emailSuffix
-                get_group_members(staffGroup)
-                get_group_members(teacherGroup)
-                # print(staffGroup, file=log) # debug
-                # print(memberLists.get(staffGroup), file=log) # debug to see the actual member lists
-                # print(teacherGroup, file=log) # debug
-                # print(memberLists.get(teacherGroup), file=log) # debug to see the actual member lists
-            get_group_members(allDistrictGroup)  # get membership for the district wide group added to dict
-            get_group_members(substituteGroup)  # get membership for the district wide sub group added to dict
+                # find the members of each group once at the start so we do not have to constantly query via the api whether a user is a member, we can just do a list comparison
+                for entry in schoolAbbreviations.values():
+                    # go through each school abbreviation and find their staff group
+                    staffGroup = entry + staffSuffix + emailSuffix
+                    teacherGroup = entry + teacherSuffix + emailSuffix
+                    get_group_members(staffGroup)
+                    get_group_members(teacherGroup)
+                    # print(staffGroup, file=log) # debug
+                    # print(memberLists.get(staffGroup), file=log) # debug to see the actual member lists
+                    # print(teacherGroup, file=log) # debug
+                    # print(memberLists.get(teacherGroup), file=log) # debug to see the actual member lists
+                get_group_members(allDistrictGroup)  # get membership for the district wide group added to dict
+                get_group_members(substituteGroup)  # get membership for the district wide sub group added to dict
 
-            print(memberLists)  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
-            # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                print(memberLists)  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
 
-            process_groups(staffOU)  # process the staff groups for the main staff ou, this will also include any sub-ous
-            process_groups('/Substitute Teachers')  # process the staff groups for the subs ou
+                process_groups(staffOU)  # process the staff groups for the main staff ou, this will also include any sub-ous
+                process_groups('/Substitute Teachers')  # process the staff groups for the subs ou
 
-            endTime = datetime.now()
-            endTime = endTime.strftime('%H:%M:%S')
-            print(f'INFO: Execution ended at {endTime}')
-            print(f'INFO: Execution ended at {endTime}', file=log)
+                endTime = datetime.now()
+                endTime = endTime.strftime('%H:%M:%S')
+                print(f'INFO: Execution ended at {endTime}')
+                print(f'INFO: Execution ended at {endTime}', file=log)

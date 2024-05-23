@@ -164,8 +164,8 @@ if __name__ == '__main__':  # main file execution
                 startTime = datetime.now()
                 startTime = startTime.strftime('%H:%M:%S')
                 currentYear = int(datetime.now().strftime('%Y'))  # get current year for calculations of grad year classes
-                print(f'Execution started at {startTime}')
-                print(f'Execution started at {startTime}', file=log)
+                print(f'INFO: Execution started at {startTime}')
+                print(f'INFO: Execution started at {startTime}', file=log)
 
                 schoolAbbreviations = {}  # define a dict to store the school codes and abbreviations linked
                 # Start by getting a list of schools id's and abbreviations for just the defined schools
@@ -199,5 +199,5 @@ if __name__ == '__main__':  # main file execution
 
                 endTime = datetime.now()
                 endTime = endTime.strftime('%H:%M:%S')
-                print(f'Execution ended at {endTime}')
-                print(f'Execution ended at {endTime}', file=log)
+                print(f'INFO: Execution ended at {endTime}')
+                print(f'INFO: Execution ended at {endTime}', file=log)

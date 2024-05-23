@@ -1,19 +1,23 @@
-# Needs the google-api-python-client, google-auth-httplib2 and the google-auth-oauthlib
-# pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+"""Script to delete any google groups with no members left in them.
 
-from __future__ import print_function
+https://github.com/Philip-Greyson/D118-Google-Groups-Licensing
 
-import os.path
+This script is designed to reduce the bloat of thousands of email groups by deleting any groups that have under a certain number of members in them.
+It goes through each group in the domain one at a time, checking the member count, and attempting to delete them if they are under the specified value.
+
+Needs the google-api-python-client, google-auth-httplib2 and the google-auth-oauthlib
+pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+"""
 
 import json
+import os.path
+from datetime import *
 from typing import get_type_hints
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-
-from datetime import *
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/admin.directory.orgunit', 'https://www.googleapis.com/auth/admin.directory.userschema', 'https://www.googleapis.com/auth/apps.licensing']
@@ -38,41 +42,41 @@ if not creds or not creds.valid:
 
 service = build('admin', 'directory_v1', credentials=creds)
 
-# define the min number of users a group can have before being deleted
-targetMemberCount = 1
+# define the min number of users a group can have before being deleted. ANY GROUPS WITH THIS NUMBER OR LOWER WILL BE CULLED
+TARGET_MEMBER_COUNT = 1
 
-# find all groups in the domain, find ones that have 0 users, delete those groups
-with open('groupDeletionLog.txt', 'w') as log:
-    startTime = datetime.now()
-    startTime = startTime.strftime('%H:%M:%S')
-    print(f'Execution started at {startTime}')
-    print(f'Execution started at {startTime}', file=log)
-    groupToken = ''
-    while groupToken is not None:
-        groupResults = service.groups().list(domain='d118.org', orderBy='email', pageToken=groupToken).execute()
-        groupToken = groupResults.get('nextPageToken')
-        groups = groupResults.get('groups')
-        for group in groups:
-            groupEmail = group.get('email')
-            memberCount = int(group.get('directMembersCount'))
-            # print(memberCount)
-            if memberCount <= targetMemberCount:
-                print(f'Group {groupEmail} has {memberCount} direct members and should probably be deleted')
-                print(f'Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
-                # do a second check for members since there might be subgroup members
-                members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members') # get a member list of the group
-                if members and len(members) > targetMemberCount: # if there are results, its not actually a 0 member group
-                    for user in members:
-                        print(f'ERROR: found {user} in group {groupEmail}')
-                        print(f'ERROR: found {user} in group {groupEmail}', file=log)
-                else: # if there are no results, the group has 0 members and can be deleted
-                    print(f'Deleting {groupEmail}')
-                    print(f'Deleting {groupEmail}',file=log)
-                    service.groups().delete(groupKey=groupEmail).execute() # delete the group
-            else:
-                print(f'Group {groupEmail} has {memberCount} members')
+if __name__ == '__main__':  # main file execution
+    with open('groupDeletionLog.txt', 'w') as log:
+        startTime = datetime.now()
+        startTime = startTime.strftime('%H:%M:%S')
+        print(f'INFO: Execution started at {startTime}')
+        print(f'INFO: Execution started at {startTime}', file=log)
+        groupToken = ''
+        while groupToken is not None:  # start a loop while there are more results to grab
+            groupResults = service.groups().list(domain='d118.org', orderBy='email', pageToken=groupToken).execute()  # list all groups in the domain
+            groupToken = groupResults.get('nextPageToken')  # get the next page token to use for the next query
+            groups = groupResults.get('groups')  # store the groups item in a new variable
+            for group in groups:
+                groupEmail = group.get('email')
+                memberCount = int(group.get('directMembersCount'))
+                # print(memberCount)
+                if memberCount <= TARGET_MEMBER_COUNT:
+                    print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted')
+                    print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
+                    # do a second check for members since there might be subgroup members
+                    members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members')  # get a member list of the group
+                    if members and len(members) > TARGET_MEMBER_COUNT:  # if there are results, its not actually a 0 member group. Sometimes this happens with subgroups
+                        for user in members:
+                            print(f'ERROR: found {user} in group {groupEmail}')
+                            print(f'ERROR: found {user} in group {groupEmail}', file=log)
+                    else:  # if there are no results, the group can be deleted
+                        print(f'INFO: Deleting {groupEmail}')
+                        print(f'INFO: Deleting {groupEmail}',file=log)
+                        service.groups().delete(groupKey=groupEmail).execute()  # delete the group
+                else:
+                    print(f'Group {groupEmail} has {memberCount} members')
 
-    endTime = datetime.now()
-    endTime = endTime.strftime('%H:%M:%S')
-    print(f'Execution ended at {endTime}')
-    print(f'Execution ended at {endTime}', file=log)
+        endTime = datetime.now()
+        endTime = endTime.strftime('%H:%M:%S')
+        print(f'INFO: Execution ended at {endTime}')
+        print(f'INFO: Execution ended at {endTime}', file=log)
