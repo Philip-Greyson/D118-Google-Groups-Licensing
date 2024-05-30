@@ -38,9 +38,15 @@ emailSuffix = os.environ.get('EMAIL_SUFFIX')
 staffSuffix = os.environ.get('STAFF_SUFFIX')
 teacherSuffix = os.environ.get('TEACHER_SUFFIX')
 staffOU = os.environ.get('STAFF_OU')
+substituteOU = os.environ.get('SUB_OU')
 allDistrictGroup = os.environ.get('ALL_DISTRICT_GROUP')
 substituteGroup = os.environ.get('SUBSTITUTE_GROUP')
 
+CUSTOM_ATTRIBUTE_SYNC_CATEGORY = 'Synchronization_Data'  # the category name that the custom attributes will be in
+CUSTOM_ATTRIBUTE_SCHOOL = 'Homeschool_ID'  # the field name for the homeschool id custom attribute in the sync category
+CUSTOM_ATTRIBUTE_ACCESS_LIST = 'School_Access_List'  # field name for the school access list custom attribute in the sync category
+CUSTOM_ATTRIBUTE_TYPE = 'Staff_Type'  # field name for the staff type custom attribute in the sync category
+SUBSTITUTE_BUILDING_CODE = '500'  # string format of the buidling code that substitutes are stored in. If there is not a specific building it can be set to a blank string
 
 creds = None
 # The file token.json stores the user's access and refresh tokens, and is
@@ -102,11 +108,11 @@ def process_groups(org_unit: str) -> None:
             # print(user) # debug
             try:
                 email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                accessListTotal = str(user.get('customSchemas').get('Synchronization_Data').get('School_Access_List'))  # get the school access list that is stored in the custom schema data
-                staffType = str(user.get('customSchemas').get('Synchronization_Data').get('Staff_Type'))  # get their staff type (teacher, staff, lunch, sub)
+                accessListTotal = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_ACCESS_LIST))  # get the school access list that is stored in the custom schema data
+                staffType = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_TYPE))  # get their staff type (teacher, staff, lunch, sub)
                 teacher = True if staffType == '1' else False  # flag for tracking whether a user is a teacher or not for teacher group purposes
                 # securityGroup = str(user.get('customSchemas').get('Synchronization_Data').get('Staff_Group'))  # get the security group number from custom schema field
-                homeschool = str(user.get('customSchemas').get('Synchronization_Data').get('Homeschool_ID'))  # get their homeschool ID
+                homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID
                 accessList = accessListTotal.split(';')  # split the access list by semicolon since that is the delimeter between entries
                 print(f'DBUG: {email} should have access to: {accessList}, teacher flag = {teacher}')  # debug
                 print(f'DBUG: {email} should have access to: {accessList}, teacher flag = {teacher}', file=log)  # debug
@@ -115,7 +121,7 @@ def process_groups(org_unit: str) -> None:
 
                 # all normal staff should be in the all district group, where all subs should be in the all subs group and they should be mutually exclusive
                 ####### SUBSTITUTES PROCESSING FOR SUBSTITUTES GROUP
-                if (staffType == 4) or (homeschool == '500'):  # 4 is the sub type in PS, 500 is our sub building
+                if (staffType == 4) or (homeschool == SUBSTITUTE_BUILDING_CODE):  # 4 is the sub type in PS, 500 is our sub building
                     # check for membership to substitute group
                     print(f'DBUG: User {email} should be in {substituteGroup} and not {allDistrictGroup}')
                     if memberLists.get(allDistrictGroup).get(email):  # check and see if they are a part of the all district group, if so we want to remove them
@@ -223,8 +229,8 @@ if __name__ == '__main__':  # main file execution
                     # print(f'School {schoolAbbrev} - Code {schoolNum}')
                     schoolAbbreviations.update({schoolNum : schoolAbbrev})
                 # schoolAbbreviations.update({'0': 'd118'} ) # add in another abbreviation for the district wide groups
-                print(schoolAbbreviations)
-                print(schoolAbbreviations, file=log)
+                print(f'DBUG: School IDs and abbreviations: {schoolAbbreviations}')
+                print(f'DBUG: School IDs and abbreviations: {schoolAbbreviations}', file=log)
 
                 memberLists = {}  # make a master dict for group memberships, that will have sub-dict sof each member and their role as its values
 
@@ -246,7 +252,7 @@ if __name__ == '__main__':  # main file execution
                 # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
 
                 process_groups(staffOU)  # process the staff groups for the main staff ou, this will also include any sub-ous
-                process_groups('/Substitute Teachers')  # process the staff groups for the subs ou
+                process_groups(substituteOU)  # process the staff groups for the subs ou
 
                 endTime = datetime.now()
                 endTime = endTime.strftime('%H:%M:%S')
