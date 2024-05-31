@@ -44,6 +44,7 @@ service = build('admin', 'directory_v1', credentials=creds)
 
 # define the min number of users a group can have before being deleted. ANY GROUPS WITH LOWER THAN THIS NUMBER OF MEMBERS WILL BE CULLED
 TARGET_MEMBER_COUNT = 2
+DOMAIN = 'd118.org'
 
 if __name__ == '__main__':  # main file execution
     with open('groupDeletionLog.txt', 'w') as log:
@@ -53,7 +54,7 @@ if __name__ == '__main__':  # main file execution
         print(f'INFO: Execution started at {startTime}', file=log)
         groupToken = ''
         while groupToken is not None:  # start a loop while there are more results to grab
-            groupResults = service.groups().list(domain='d118.org', orderBy='email', pageToken=groupToken).execute()  # list all groups in the domain
+            groupResults = service.groups().list(domain=DOMAIN, orderBy='email', pageToken=groupToken).execute()  # list all groups in the domain
             groupToken = groupResults.get('nextPageToken')  # get the next page token to use for the next query
             groups = groupResults.get('groups')  # store the groups item in a new variable
             for group in groups:
