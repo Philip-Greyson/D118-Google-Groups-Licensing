@@ -75,7 +75,8 @@ if __name__ == '__main__':  # main file execution
                         print(f'INFO: Deleting {groupEmail}',file=log)
                         service.groups().delete(groupKey=groupEmail).execute()  # delete the group
                 else:
-                    print(f'Group {groupEmail} has {memberCount} members')
+                    print(f'DBUG: Group {groupEmail} has {memberCount} members')
+                    # print(f'DBUG: Group {groupEmail} has {memberCount} members', file=log)  # debug to show member counts for every group as its processed
 
         endTime = datetime.now()
         endTime = endTime.strftime('%H:%M:%S')
