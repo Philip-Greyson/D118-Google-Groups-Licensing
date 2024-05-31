@@ -41,6 +41,9 @@ allStudentGroup = os.environ.get('ALL_STUDENT_GROUP')
 studentOU = os.environ.get('STUDENT_OU')
 gradYearPrefix = os.environ.get('GRAD_YEAR_PREFIX')
 
+CUSTOM_ATTRIBUTE_SYNC_CATEGORY = 'Synchronization_Data'  # the category name that the custom attributes will be in
+CUSTOM_ATTRIBUTE_SCHOOL = 'Homeschool_ID'  # the field name for the homeschool id custom attribute in the sync category
+CUSTOM_ATTRIBUTE_GRAD_YEAR = 'Graduation_Year'  # the field name for the graduation year custom attribute in the sync category
 
 creds = None
 # The file token.json stores the user's access and refresh tokens, and is
@@ -106,8 +109,8 @@ def process_groups(org_unit: str) -> None:
                 ou = user.get('orgUnitPath')
                 if ('test' not in ou.lower()) and ('fbla' not in ou.lower()) and ('pre students' not in ou.lower()):  # ignore any accounts that are in an OU that contains the word test, fbla, pre students
                     email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                    homeschool = str(user.get('customSchemas').get('Synchronization_Data').get('Homeschool_ID'))  # get their homeschool ID
-                    gradYear = str(user.get('customSchemas').get('Synchronization_Data').get('Graduation_Year'))  # get their homeschool ID
+                    homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID from the custom attributes in their profile
+                    gradYear = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_GRAD_YEAR))  # get their grad year from the custom attributes in their profile
 
                     print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}')
                     print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}', file=log)
