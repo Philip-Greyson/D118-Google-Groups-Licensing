@@ -5,7 +5,7 @@ This script deletes email groups in the domain that have under a specified membe
 ## Overview
 
 Because many groups are created by users or other automation systems, Google Classroom, etc, the email groups list expands each year which makes it difficult to find any by simply browsing.
-This script is meant to help solve that by deleting any groups that have under a certain member count.
+This script is meant to help solve that by deleting any groups that have under a certain member count. This pairs well with the remove suspended script that removes any suspended accounts from all groups, so that as students graduate and staff leaves their old groups are deleted.
 It simply queries all the email groups in the specified domain, then goes through each one, finds the member count, and if it is less than the target member count, it deletes it.
 This can be a somewhat lengthy process depending on how many groups are in your domain.
 
