@@ -45,16 +45,16 @@ service = build('admin', 'directory_v1', credentials=creds)
 licenseService = build('licensing', 'v1', credentials=creds)
 
 
-productId = '101031'  # https://developers.google.com/admin-sdk/licensing/v1/how-tos/products
-skus = ['1010310006', '1010310005']  # 1010310006 is teacher, 1010310005 is student
-customer = 'd118.org'
+PRODUCT_ID = '101031'  # https://developers.google.com/admin-sdk/licensing/v1/how-tos/products
+SKUS = ['1010310006', '1010310005']  # 1010310006 is teacher, 1010310005 is student
+CUSTOMER = 'd118.org'
 
 # get a list of all license assignments for given product and sku, go through each user with that license and check if they are suspended, if so remove the license
 def remove_licenses(product: str, sku: str) -> None:
         """Function to find all users of a certain productID and SKU and remove it from any suspended accounts using it."""
         newToken =  ''
         while newToken is not None:  # do a while loop while we still have the next page token to get more results with
-            licenseResults = licenseService.licenseAssignments().listForProductAndSku(productId=product, skuId=sku, customerId= customer, pageToken=newToken).execute()  # get the licenses for the specified product and sku IDs
+            licenseResults = licenseService.licenseAssignments().listForProductAndSku(productId=product, skuId=sku, customerId= CUSTOMER, pageToken=newToken).execute()  # get the licenses for the specified product and sku IDs
             newToken = licenseResults.get('nextPageToken')
             # print(licenseResults)
             userLicenses = licenseResults.get('items', [])  # get the actual license assignments block out of the overall results
@@ -82,8 +82,8 @@ if __name__ == '__main__':  # main file execution
         print(f'Execution started at {startTime}')
         print(f'Execution started at {startTime}', file=log)
 
-        for entry in skus:
-            remove_licenses(productId, entry)
+        for entry in SKUS:
+            remove_licenses(PRODUCT_ID, entry)
 
         endTime = datetime.now()
         endTime = endTime.strftime('%H:%M:%S')
