@@ -42,8 +42,8 @@ if not creds or not creds.valid:
 
 service = build('admin', 'directory_v1', credentials=creds)
 
-# define the min number of users a group can have before being deleted. ANY GROUPS WITH THIS NUMBER OR LOWER WILL BE CULLED
-TARGET_MEMBER_COUNT = 1
+# define the min number of users a group can have before being deleted. ANY GROUPS WITH LOWER THAN THIS NUMBER OF MEMBERS WILL BE CULLED
+TARGET_MEMBER_COUNT = 2
 
 if __name__ == '__main__':  # main file execution
     with open('groupDeletionLog.txt', 'w') as log:
@@ -60,7 +60,7 @@ if __name__ == '__main__':  # main file execution
                 groupEmail = group.get('email')
                 memberCount = int(group.get('directMembersCount'))
                 # print(memberCount)
-                if memberCount <= TARGET_MEMBER_COUNT:
+                if memberCount < TARGET_MEMBER_COUNT:
                     print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted')
                     print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
                     # do a second check for members since there might be subgroup members
