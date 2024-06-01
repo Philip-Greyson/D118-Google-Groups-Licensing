@@ -74,7 +74,7 @@ def get_group_members(group_email: str) -> None:
     try:
         staffMemberToken = ''  # blank primer token for multi-page query results
         tempDict = {}  # create a temp dict that will hold the members and their roles
-        print(group_email)  # debug
+        print(f'INFO: Getting group members for {group_email}')  # debug
         while staffMemberToken is not None:  # while we still have results to process
             staffMemberResults = service.members().list(groupKey=group_email, pageToken=staffMemberToken, includeDerivedMembership='True').execute()  # get the members of the group by email
             staffMemberToken = staffMemberResults.get('nextPageToken')
@@ -139,7 +139,7 @@ def process_groups(org_unit: str) -> None:
                 ####### NORMAL STAFF PROCESSING FOR DISTRICT WIDE GROUP
                 else:  # if they are not a sub
                     # check for membership to the district wide group
-                    print(f'User should be in {allDistrictGroup} and not {substituteGroup}')
+                    print(f'DBUG: User should be in {allDistrictGroup} and not {substituteGroup}')
                     if memberLists.get(substituteGroup).get(email):  # check and see if they are a part of the sub group, if so we want to remove them
                         if memberLists.get(substituteGroup).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
                             print(f'INFO: {email} currently a part of {substituteGroup}, will be removed')
@@ -160,14 +160,14 @@ def process_groups(org_unit: str) -> None:
                         teacherGroupEmail = schoolAbbreviations.get(schoolEntry) + teacherSuffix + emailSuffix
                         if schoolEntry in accessList:  # if the school id number we are currently is in their access list, they should be a part of that school's groups
                             if teacher:
-                                print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}')  # debug
+                                print(f'DBUG: {email} should be in {staffGroupEmail} and {teacherGroupEmail}')  # debug
                                 # print(f'{email} should be in {staffGroupEmail} and {teacherGroupEmail}', file=log) # debug
                                 if not memberLists.get(teacherGroupEmail).get(email):  # check and see if they are in the member list for the teacher group already, if not we want to add them
                                     print(f'INFO: {email} currently not a member of {teacherGroupEmail}, will be added')
                                     print(f'INFO: {email} currently not a member of {teacherGroupEmail}, will be added', file=log)
                                     service.members().insert(groupKey=teacherGroupEmail, body=addBodyDict).execute()  # do the addition to the group
                             else:  # if they are not a teacher they should just be in the staff group
-                                print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}')  # debug
+                                print(f'DBUG: {email} should be in {staffGroupEmail}, but not {teacherGroupEmail}')  # debug
                                 # print(f'{email} should be in {staffGroupEmail}, but not {teacherGroupEmail}', file=log) # debug
                                 if memberLists.get(teacherGroupEmail).get(email):  # check and see if they are in the member list for teachers, if so we need to remove them
                                     if memberLists.get(teacherGroupEmail).get(email) == 'MEMBER':
@@ -183,7 +183,7 @@ def process_groups(org_unit: str) -> None:
                                     print(f'INFO: {email} currently not a member of {staffGroupEmail}, will be added', file=log)
                                     service.members().insert(groupKey=staffGroupEmail, body=addBodyDict).execute()  # do the addition to the group
                         else:  # if they do not have the school number on their access list, they should not get access to the email groups
-                            print(f'{email} should NOT be in {staffGroupEmail} or {teacherGroupEmail}')  # debug
+                            print(f'DBUG: {email} should NOT be in {staffGroupEmail} or {teacherGroupEmail}')  # debug
                             # check both groups for their membership. If they are members, check and see if they are only members or if they are owners/managers. If they are only members, we remove them
                             if memberLists.get(staffGroupEmail).get(email):  # check and see if they are a part of the staff group, if so we want to remove them
                                 if memberLists.get(staffGroupEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
@@ -248,8 +248,8 @@ if __name__ == '__main__':  # main file execution
                 get_group_members(allDistrictGroup)  # get membership for the district wide group added to dict
                 get_group_members(substituteGroup)  # get membership for the district wide sub group added to dict
 
-                print(memberLists)  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
-                # print(memberLists, file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                print(f'DBUG: All groups members: {memberLists}')  # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
+                # print((f'DBUG: All groups members: {memberLists}', file=log) # debug, now should have a dict containing each group email as the keys, and the value is a dict of its own containing the emails and roles of each member of the group
 
                 process_groups(staffOU)  # process the staff groups for the main staff ou, this will also include any sub-ous
                 process_groups(substituteOU)  # process the staff groups for the subs ou
