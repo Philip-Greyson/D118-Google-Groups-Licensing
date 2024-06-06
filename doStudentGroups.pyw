@@ -74,7 +74,7 @@ def get_group_members(group_email: str) -> None:
     try:
         studentMemberToken = ''  # blank primer token for multi-page query results
         tempDict = {}  # create a temp dict that will hold the members and their roles
-        print(f'Getting members of {group_email}')  # debug
+        print(f'DBUG: Getting members of {group_email}')  # debug
         while studentMemberToken is not None:  # while we still have results to process
             studentMemberResults = service.members().list(groupKey=group_email, pageToken=studentMemberToken, includeDerivedMembership='True').execute()  # get the members of the group by email
             studentMemberToken = studentMemberResults.get('nextPageToken')
@@ -108,22 +108,29 @@ def process_groups(org_unit: str) -> None:
             try:
                 ou = user.get('orgUnitPath')
                 if ('test' not in ou.lower()) and ('fbla' not in ou.lower()) and ('pre students' not in ou.lower()):  # ignore any accounts that are in an OU that contains the word test, fbla, pre students
-                    email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                    homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID from the custom attributes in their profile
-                    gradYear = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_GRAD_YEAR))  # get their grad year from the custom attributes in their profile
+                    try:
+                        email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
+                        homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID from the custom attributes in their profile
+                        gradYear = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_GRAD_YEAR))  # get their grad year from the custom attributes in their profile
 
-                    print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}')
-                    print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}', file=log)
-                    addBodyDict = {'email' : email, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
+                        print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}')
+                        print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}', file=log)
+                        addBodyDict = {'email' : email, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
+                    except Exception as er:
+                        print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}')
+                        print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}', file=log)
 
-                    # Check to see if they are a member of the all student group, if not we need to add them
-                    if not memberLists.get(allStudentGroup).get(email):
-                        print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added')
-                        print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added', file=log)
-                        service.members().insert(groupKey=allStudentGroup, body=addBodyDict).execute()  # do the addition to the group
-                    # else: # debug
-                    #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed')
-                    #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed', file=log)
+                    try:  # Check to see if they are a member of the all student group, if not we need to add them
+                        if not memberLists.get(allStudentGroup).get(email):
+                            print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added')
+                            print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added', file=log)
+                            service.members().insert(groupKey=allStudentGroup, body=addBodyDict).execute()  # do the addition to the group
+                        # else: # debug
+                        #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed')
+                        #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed', file=log)
+                    except Exception as er:
+                        print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}')
+                        print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}', file=log)
 
                     # go through each school code : abbreviation pair to check membership for each building group
                     for schoolEntry in schoolAbbreviations.keys():
@@ -148,8 +155,8 @@ def process_groups(org_unit: str) -> None:
                                         print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed', file=log)
 
                         except Exception as er:
-                            print(f'ERROR: in building {schoolEntry} on user {email}: {er}')
-                            print(f'ERROR: in building {schoolEntry} on user {email}: {er}', file=log)
+                            print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}')
+                            print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}', file=log)
 
                     # go through each grad year group to check membership
                     for year in gradYears:
@@ -173,11 +180,11 @@ def process_groups(org_unit: str) -> None:
                                         print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed')
                                         print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed', file=log)
                         except Exception as er:
-                            print(f'ERROR: in grad year entry {schoolEntry} on user {email}: {er}')
-                            print(f'ERROR: in grad year entry {schoolEntry} on user {email}: {er}', file=log)
+                            print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
+                            print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
             except Exception as er:
-                print(f'ERROR: on {user} - {er}')
-                print(f'ERROR: on {user} - {er}',file=log)
+                print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}')
+                print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}',file=log)
 
 if __name__ == '__main__':  # main file execution
     with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
