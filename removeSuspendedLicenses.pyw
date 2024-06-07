@@ -53,6 +53,8 @@ CUSTOMER = 'd118.org'
 def remove_licenses(product: str, sku: str) -> None:
         """Function to find all users of a certain productID and SKU and remove it from any suspended accounts using it."""
         newToken =  ''
+        print(f'INFO: Starting product {product} and SKU {sku} to remove suspended users')
+        print(f'INFO: Starting product {product} and SKU {sku} to remove suspended users', file=log)
         while newToken is not None:  # do a while loop while we still have the next page token to get more results with
             licenseResults = licenseService.licenseAssignments().listForProductAndSku(productId=product, skuId=sku, customerId= CUSTOMER, pageToken=newToken).execute()  # get the licenses for the specified product and sku IDs
             newToken = licenseResults.get('nextPageToken')
@@ -68,24 +70,30 @@ def remove_licenses(product: str, sku: str) -> None:
                         result = licenseService.licenseAssignments().delete(productId=product, skuId=sku, userId=email).execute()  # does the actual removal of the license
                         print(f'DBUG: {result}')  # debug
                     else:  # debug
-                        print(f'INFO: {email} is enabled, no changes needed')
-                        print(f'INFO: {email} is enabled, no changes needed', file=log)
+                        print(f'DBUG: {email} is enabled, no changes needed')
+                        print(f'DBUG: {email} is enabled, no changes needed', file=log)
                 except Exception as er:
-                    print(f'ERROR on {user}: {er}')
-                    print(f'ERROR on {user}: {er}', file=log)
+                    if "Details:" in er:  # if the error is coming from the Google API it will have specific info including the "Details" section
+                        er = er.split("Details: ")[1]  # split the error message by the http code and details
+                        er = er.strip("\"[]>")  # strip out the extra ", [], and > that will still be left over. Should result in a dict with a message, domain, and reason
+                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er["message"]}, reason {er["reason"]}')
+                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er["message"]}, reason {er["reason"]}', file=log)
+                    else:
+                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
+                        print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
 
 
 if __name__ == '__main__':  # main file execution
     with open('suspendedLicensesLog.txt', 'w') as log:
         startTime = datetime.now()
         startTime = startTime.strftime('%H:%M:%S')
-        print(f'Execution started at {startTime}')
-        print(f'Execution started at {startTime}', file=log)
+        print(f'INFO: Execution started at {startTime}')
+        print(f'INFO: Execution started at {startTime}', file=log)
 
         for entry in SKUS:
             remove_licenses(PRODUCT_ID, entry)
 
         endTime = datetime.now()
         endTime = endTime.strftime('%H:%M:%S')
-        print(f'Execution ended at {endTime}')
-        print(f'Execution ended at {endTime}', file=log)
+        print(f'INFO: Execution ended at {endTime}')
+        print(f'INFO: Execution ended at {endTime}', file=log)
