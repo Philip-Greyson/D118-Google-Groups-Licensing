@@ -24,6 +24,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # setup db connection
 DB_UN = os.environ.get('POWERSCHOOL_READ_USER')  # username for read-only database user
@@ -202,13 +203,17 @@ def process_groups(org_unit: str) -> None:
                                 else:
                                     print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed')
                                     print(f'WARN: {email} is an elevated role in {teacherGroupEmail} and will NOT be removed', file=log)
-
+                    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                        status = er.status_code
+                        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                        print(f'ERROR {status} from Google API while processing user {email} in building {schoolEntry}: {details["message"]}. Reason: {details["reason"]}')
+                        print(f'ERROR {status} from Google API while processing user {email} in building {schoolEntry}: {details["message"]}. Reason: {details["reason"]}', file=log)
                     except Exception as er:
-                        print(f'ERROR: in building {schoolEntry} on user {email}, teacher {teacher}: {er}')
-                        print(f'ERROR: in building {schoolEntry} on user {email}, teacher {teacher}: {er}', file=log)
+                        print(f'ERROR on user {email} for building {schoolEntry}, teacher {teacher}: {er}')
+                        print(f'ERROR on user {email} for building {schoolEntry}, teacher {teacher}: {er}', file=log)
             except Exception as er:
-                print(f'ERROR: on {user} - {er}')
-                print(f'ERROR: on {user} - {er}',file=log)
+                print(f'ERROR on {user} - {er}')
+                print(f'ERROR on {user} - {er}',file=log)
 
 if __name__ == '__main__':  # main file execution
     with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database

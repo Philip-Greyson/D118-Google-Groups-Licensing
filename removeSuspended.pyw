@@ -20,6 +20,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/apps.licensing']
@@ -81,6 +82,11 @@ if __name__ == '__main__':  # main file execution
                     else:
                         print('ERROR: Not actually suspended!')
                         print('ERROR: Not actually suspended!', file=log)
+                except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                    status = er.status_code
+                    details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                    print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}')
+                    print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}', file=log)
                 except Exception as er:
                     print(f'ERROR: {er}')
                     print(f'ERROR: {er}',file=log)

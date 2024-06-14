@@ -22,6 +22,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # setup db connection
 DB_UN = os.environ.get('POWERSCHOOL_READ_USER')  # username for read-only database user
@@ -130,9 +131,14 @@ def process_groups(org_unit: str, group_email: str) -> None:
                 # else: # debug
                 #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed')
                 #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed', file=log)
+            except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                status = er.status_code
+                details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}')
+                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}', file=log)
             except Exception as er:
-                print(f'ERROR: on {user}: {er}')
-                print(f'ERROR: on {user}: {er}',file=log)
+                print(f'ERROR: on {user["primaryEmail"]}: {er}')
+                print(f'ERROR: on {user["primaryEmail"]}: {er}',file=log)
 
 def remove_invalid(org_unit: str, group_email: str) -> None:
     """Goes through emails in a given group email that has been previously stored with get_group_members, and removes any emails belonging to users who are not in the given OU."""
@@ -150,6 +156,11 @@ def remove_invalid(org_unit: str, group_email: str) -> None:
                         print(f'ACTION: {email} should not be a member of {group_email}, will be removed', file=log)
                         service.members().delete(groupKey=group_email, memberKey=email).execute()  # do the removal from the group
                     # print(user, file=log)
+            except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                status = er.status_code
+                details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                print(f'ERROR {status} from Google API while processing removal on user {email} for group {group_email}: {details["message"]}. Reason: {details["reason"]}')
+                print(f'ERROR {status} from Google API while processing removal on user {email} for group {group_email}: {details["message"]}. Reason: {details["reason"]}', file=log)
             except Exception as er:
                 print(f'ERROR on user {email}: {er}')
                 print(f'ERROR on user {email}: {er}', file=log)

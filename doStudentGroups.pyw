@@ -25,6 +25,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # setup db connection
 DB_UN = os.environ.get('POWERSCHOOL_READ_USER')  # username for read-only database user
@@ -153,7 +154,11 @@ def process_groups(org_unit: str) -> None:
                                     else:  # if they are an elevated member just give a warning
                                         print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed')
                                         print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed', file=log)
-
+                        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                            status = er.status_code
+                            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}')
+                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}', file=log)
                         except Exception as er:
                             print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}')
                             print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}', file=log)
@@ -179,6 +184,11 @@ def process_groups(org_unit: str) -> None:
                                     else:  # if they are an elevated member just give a warning
                                         print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed')
                                         print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed', file=log)
+                        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                            status = er.status_code
+                            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}')
+                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}', file=log)
                         except Exception as er:
                             print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
                             print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')

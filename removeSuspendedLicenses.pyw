@@ -18,6 +18,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/admin.directory.user', 'https://www.googleapis.com/auth/admin.directory.group', 'https://www.googleapis.com/auth/admin.directory.group.member', 'https://www.googleapis.com/auth/apps.licensing']
@@ -72,15 +73,14 @@ def remove_licenses(product: str, sku: str) -> None:
                     else:  # debug
                         print(f'DBUG: {email} is enabled, no changes needed')
                         print(f'DBUG: {email} is enabled, no changes needed', file=log)
+                except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                        status = er.status_code
+                        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                        print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}')
+                        print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}', file=log)
                 except Exception as er:
-                    if "Details:" in er:  # if the error is coming from the Google API it will have specific info including the "Details" section
-                        er = er.split("Details: ")[1]  # split the error message by the http code and details
-                        er = er.strip("\"[]>")  # strip out the extra ", [], and > that will still be left over. Should result in a dict with a message, domain, and reason
-                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er["message"]}, reason {er["reason"]}')
-                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er["message"]}, reason {er["reason"]}', file=log)
-                    else:
-                        print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
-                        print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
+                    print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
+                    print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
 
 
 if __name__ == '__main__':  # main file execution
