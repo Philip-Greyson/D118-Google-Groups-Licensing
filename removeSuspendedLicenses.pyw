@@ -52,7 +52,8 @@ CUSTOMER = 'd118.org'
 
 # get a list of all license assignments for given product and sku, go through each user with that license and check if they are suspended, if so remove the license
 def remove_licenses(product: str, sku: str) -> None:
-        """Function to find all users of a certain productID and SKU and remove it from any suspended accounts using it."""
+    """Function to find all users of a certain productID and SKU and remove it from any suspended accounts using it."""
+    try:
         newToken =  ''
         print(f'INFO: Starting product {product} and SKU {sku} to remove suspended users')
         print(f'INFO: Starting product {product} and SKU {sku} to remove suspended users', file=log)
@@ -81,6 +82,14 @@ def remove_licenses(product: str, sku: str) -> None:
                 except Exception as er:
                     print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
                     print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
+    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+        status = er.status_code
+        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+        print(f'ERROR {status} from Google API while getting users with product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}')
+        print(f'ERROR {status} from Google API while getting users with product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}',file=log)
+    except Exception as er:
+        print(f'ERROR while performing query to get users with product {product} and SKU {sku}: {er}')
+        print(f'ERROR while performing query to get users with product {product} and SKU {sku}: {er}')
 
 
 if __name__ == '__main__':  # main file execution

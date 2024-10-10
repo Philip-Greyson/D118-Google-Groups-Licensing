@@ -54,42 +54,51 @@ if __name__ == '__main__':  # main file execution
         startTime = startTime.strftime('%H:%M:%S')
         print(f'INFO: Execution started at {startTime}')
         print(f'INFO: Execution started at {startTime}', file=log)
-        newToken =  ''
-        while newToken is not None:  # do a while loop while we still have the next page token to get more results with
-            userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=newToken, query="isSuspended=True").execute()
-            newToken = userResults.get('nextPageToken')
-            users = userResults.get('users', [])
-            for user in users:
-                try:
-                    email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                    org = user.get('orgUnitPath')
-                    inactive = user.get('suspended')
-                    print(f'DBUG: {email} - {org} - Suspended {inactive}')
-                    print(f'DBUG: {email} - {org} - Suspended {inactive}', file=log)
+        try:
+            newToken =  ''
+            while newToken is not None:  # do a while loop while we still have the next page token to get more results with
+                userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=newToken, query="isSuspended=True").execute()
+                newToken = userResults.get('nextPageToken')
+                users = userResults.get('users', [])
+                for user in users:
+                    try:
+                        email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
+                        org = user.get('orgUnitPath')
+                        inactive = user.get('suspended')
+                        print(f'DBUG: {email} - {org} - Suspended {inactive}')
+                        print(f'DBUG: {email} - {org} - Suspended {inactive}', file=log)
 
-                    if inactive == True:
-                        userGroups = service.groups().list(userKey=email).execute().get('groups')
-                        if userGroups:
-                            for group in userGroups:
-                                name = group.get('name')
-                                groupEmail = group.get('email')
-                                print(f'INFO: {email} is a member of: {name} - {groupEmail} and will be removed')
-                                print(f'INFO: {email} is a member of: {name} - {groupEmail} and will be removed',file=log)
-                                service.members().delete(groupKey=groupEmail, memberKey=email).execute()
+                        if inactive == True:
+                            userGroups = service.groups().list(userKey=email).execute().get('groups')
+                            if userGroups:
+                                for group in userGroups:
+                                    name = group.get('name')
+                                    groupEmail = group.get('email')
+                                    print(f'INFO: {email} is a member of: {name} - {groupEmail} and will be removed')
+                                    print(f'INFO: {email} is a member of: {name} - {groupEmail} and will be removed',file=log)
+                                    service.members().delete(groupKey=groupEmail, memberKey=email).execute()
+                            else:
+                                print('DBUG: No groups')
+                                # print('DBUG: No groups', file=log)
                         else:
-                            print('DBUG: No groups')
-                            # print('DBUG: No groups', file=log)
-                    else:
-                        print('ERROR: Not actually suspended!')
-                        print('ERROR: Not actually suspended!', file=log)
-                except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
-                    status = er.status_code
-                    details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                    print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}')
-                    print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}', file=log)
-                except Exception as er:
-                    print(f'ERROR: {er}')
-                    print(f'ERROR: {er}',file=log)
+                            print('ERROR: Not actually suspended!')
+                            print('ERROR: Not actually suspended!', file=log)
+                    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                        status = er.status_code
+                        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                        print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}')
+                        print(f'ERROR {status} from Google API while processing {email}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                    except Exception as er:
+                        print(f'ERROR: {er}')
+                        print(f'ERROR: {er}',file=log)
+        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+            status = er.status_code
+            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+            print(f'ERROR {status} from Google API while getting suspended users: {details["message"]}. Reason: {details["reason"]}')
+            print(f'ERROR {status} from Google API while getting suspended users: {details["message"]}. Reason: {details["reason"]}',file=log)
+        except Exception as er:
+            print(f'ERROR while performing query to get suspended users: {er}')
+            print(f'ERROR while performing query to get suspended users: {er}')
 
         endTime = datetime.now()
         endTime = endTime.strftime('%H:%M:%S')

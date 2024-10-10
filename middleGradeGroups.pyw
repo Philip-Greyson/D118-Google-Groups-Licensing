@@ -108,37 +108,46 @@ def get_ou_members(org_unit :str) -> None:
 
 def process_groups(org_unit: str, group_email: str) -> None:
     """Go through all student members in a given OU, and add them to a given group email if they are not already a member."""
-    userToken =  ''
-    queryString = "orgUnitPath='" + org_unit + "'"  # have to have the orgUnit enclosed by its own set of quotes in order to work
-    # print(queryString)
-    # print(queryString, file=log)
-    print(f'INFO: Checking students in {org_unit} and adding them to {group_email} if not already present')
-    print(f'INFO: Checking students in {org_unit} and adding them to {group_email} if not already present', file=log)
-    while userToken is not None:  # do a while loop while we still have the next page token to get more results with
-        userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=userToken, query=queryString).execute()
-        userToken = userResults.get('nextPageToken')
-        users = userResults.get('users', [])
-        for user in users:
-            try:
-                studentEmail = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                # print(f'DBUG: {studentEmail} should be a part of {groupEmail}')
-                # print(f'DBUG: {studentEmail} should be a part of {groupEmail}', file=log)
-                if not memberLists.get(group_email).get(studentEmail):  # if we cant find the user email in the group, they need to be added
-                    addBodyDict = {'email' : studentEmail, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
-                    print(f'ACTION: {studentEmail} is currently not a member of {group_email}, will be added')
-                    print(f'ACTION: {studentEmail} is currently not a member of {group_email}, will be added', file=log)
-                    service.members().insert(groupKey=group_email, body=addBodyDict).execute()  # do the addition to the group
-                # else: # debug
-                #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed')
-                #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed', file=log)
-            except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
-                status = er.status_code
-                details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}')
-                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}', file=log)
-            except Exception as er:
-                print(f'ERROR: on {user["primaryEmail"]}: {er}')
-                print(f'ERROR: on {user["primaryEmail"]}: {er}',file=log)
+    try:
+        userToken =  ''
+        queryString = "orgUnitPath='" + org_unit + "'"  # have to have the orgUnit enclosed by its own set of quotes in order to work
+        # print(queryString)
+        # print(queryString, file=log)
+        print(f'INFO: Checking students in {org_unit} and adding them to {group_email} if not already present')
+        print(f'INFO: Checking students in {org_unit} and adding them to {group_email} if not already present', file=log)
+        while userToken is not None:  # do a while loop while we still have the next page token to get more results with
+            userResults = service.users().list(customer='my_customer', orderBy='email', pageToken=userToken, query=queryString).execute()
+            userToken = userResults.get('nextPageToken')
+            users = userResults.get('users', [])
+            for user in users:
+                try:
+                    studentEmail = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
+                    # print(f'DBUG: {studentEmail} should be a part of {groupEmail}')
+                    # print(f'DBUG: {studentEmail} should be a part of {groupEmail}', file=log)
+                    if not memberLists.get(group_email).get(studentEmail):  # if we cant find the user email in the group, they need to be added
+                        addBodyDict = {'email' : studentEmail, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
+                        print(f'ACTION: {studentEmail} is currently not a member of {group_email}, will be added')
+                        print(f'ACTION: {studentEmail} is currently not a member of {group_email}, will be added', file=log)
+                        service.members().insert(groupKey=group_email, body=addBodyDict).execute()  # do the addition to the group
+                    # else: # debug
+                    #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed')
+                    #     print(f'DBUG: {studentEmail} is already a part of {group_email}, no action needed', file=log)
+                except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                    status = er.status_code
+                    details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                    print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}')
+                    print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} for group {group_email}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                except Exception as er:
+                    print(f'ERROR: on {user["primaryEmail"]}: {er}')
+                    print(f'ERROR: on {user["primaryEmail"]}: {er}',file=log)
+    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+        status = er.status_code
+        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+        print(f'ERROR {status} from Google API while getting users in OU {org_unit}: {details["message"]}. Reason: {details["reason"]}')
+        print(f'ERROR {status} from Google API while getting users in OU {org_unit}: {details["message"]}. Reason: {details["reason"]}',file=log)
+    except Exception as er:
+        print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
+        print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
 
 def remove_invalid(org_unit: str, group_email: str) -> None:
     """Goes through emails in a given group email that has been previously stored with get_group_members, and removes any emails belonging to users who are not in the given OU."""

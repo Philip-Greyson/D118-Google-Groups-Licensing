@@ -53,40 +53,49 @@ if __name__ == '__main__':  # main file execution
         startTime = startTime.strftime('%H:%M:%S')
         print(f'INFO: Execution started at {startTime}')
         print(f'INFO: Execution started at {startTime}', file=log)
-        groupToken = ''
-        while groupToken is not None:  # start a loop while there are more results to grab
-            groupResults = service.groups().list(domain=DOMAIN, orderBy='email', pageToken=groupToken).execute()  # list all groups in the domain
-            groupToken = groupResults.get('nextPageToken')  # get the next page token to use for the next query
-            groups = groupResults.get('groups')  # store the groups item in a new variable
-            for group in groups:
-                try:
-                    groupEmail = group.get('email')
-                    memberCount = int(group.get('directMembersCount'))
-                    # print(memberCount)
-                    if memberCount < TARGET_MEMBER_COUNT:
-                        print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted')
-                        print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
-                        # do a second check for members since there might be subgroup members
-                        members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members')  # get a member list of the group
-                        if members and len(members) > TARGET_MEMBER_COUNT:  # if there are results, its not actually a 0 member group. Sometimes this happens with subgroups
-                            for user in members:
-                                print(f'ERROR: found {user} in group {groupEmail}')
-                                print(f'ERROR: found {user} in group {groupEmail}', file=log)
-                        else:  # if there are no results, the group can be deleted
-                            print(f'INFO: Deleting {groupEmail}')
-                            print(f'INFO: Deleting {groupEmail}',file=log)
-                            service.groups().delete(groupKey=groupEmail).execute()  # delete the group
-                    else:
-                        print(f'DBUG: Group {groupEmail} has {memberCount} members')
-                        # print(f'DBUG: Group {groupEmail} has {memberCount} members', file=log)  # debug to show member counts for every group as its processed
-                except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
-                    status = er.status_code
-                    details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                    print(f'ERROR {status} from Google API while processing group {group["email"]}: {details["message"]}. Reason: {details["reason"]}')
-                    print(f'ERROR {status} from Google API while processing group {group["email"]}: {details["message"]}. Reason: {details["reason"]}', file=log)
-                except Exception as er:
-                    print(f'ERROR while processing group {group["email"]}: {er}')
-                    print(f'ERROR while processing group {group["email"]}: {er}', file=log)
+        try:
+            groupToken = ''
+            while groupToken is not None:  # start a loop while there are more results to grab
+                groupResults = service.groups().list(domain=DOMAIN, orderBy='email', pageToken=groupToken).execute()  # list all groups in the domain
+                groupToken = groupResults.get('nextPageToken')  # get the next page token to use for the next query
+                groups = groupResults.get('groups')  # store the groups item in a new variable
+                for group in groups:
+                    try:
+                        groupEmail = group.get('email')
+                        memberCount = int(group.get('directMembersCount'))
+                        # print(memberCount)
+                        if memberCount < TARGET_MEMBER_COUNT:
+                            print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted')
+                            print(f'DBUG: Group {groupEmail} has {memberCount} direct members and should probably be deleted', file=log)
+                            # do a second check for members since there might be subgroup members
+                            members = service.members().list(groupKey=groupEmail, includeDerivedMembership='True').execute().get('members')  # get a member list of the group
+                            if members and len(members) > TARGET_MEMBER_COUNT:  # if there are results, its not actually a 0 member group. Sometimes this happens with subgroups
+                                for user in members:
+                                    print(f'ERROR: found {user} in group {groupEmail}')
+                                    print(f'ERROR: found {user} in group {groupEmail}', file=log)
+                            else:  # if there are no results, the group can be deleted
+                                print(f'INFO: Deleting {groupEmail}')
+                                print(f'INFO: Deleting {groupEmail}',file=log)
+                                service.groups().delete(groupKey=groupEmail).execute()  # delete the group
+                        else:
+                            print(f'DBUG: Group {groupEmail} has {memberCount} members')
+                            # print(f'DBUG: Group {groupEmail} has {memberCount} members', file=log)  # debug to show member counts for every group as its processed
+                    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                        status = er.status_code
+                        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                        print(f'ERROR {status} from Google API while processing group {group["email"]}: {details["message"]}. Reason: {details["reason"]}')
+                        print(f'ERROR {status} from Google API while processing group {group["email"]}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                    except Exception as er:
+                        print(f'ERROR while processing group {group["email"]}: {er}')
+                        print(f'ERROR while processing group {group["email"]}: {er}', file=log)
+        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+            status = er.status_code
+            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+            print(f'ERROR {status} from Google API while getting all groups: {details["message"]}. Reason: {details["reason"]}')
+            print(f'ERROR {status} from Google API while getting all groups: {details["message"]}. Reason: {details["reason"]}',file=log)
+        except Exception as er:
+            print(f'ERROR while performing query to get all groups: {er}')
+            print(f'ERROR while performing query to get all groups: {er}')
 
         endTime = datetime.now()
         endTime = endTime.strftime('%H:%M:%S')

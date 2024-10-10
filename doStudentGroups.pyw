@@ -97,104 +97,115 @@ def get_group_members(group_email: str) -> None:
 
 def process_groups(org_unit: str) -> None:
     """Go through all members in the given OU, look at their school access lists, and see if they are in the groups they belong in."""
-    userToken =  ''
-    queryString = "orgUnitPath='" + org_unit + "'"  # have to have the orgUnit enclosed by its own set of quotes in order to work
-    print(queryString)
-    while userToken is not None:  # do a while loop while we still have the next page token to get more results with
-        userResults = service.users().list(customer='my_customer', orderBy='email', projection='full', pageToken=userToken, query=queryString).execute()
-        userToken = userResults.get('nextPageToken')
-        users = userResults.get('users', [])
-        for user in users:
-            # print(user) # debug
-            try:
-                ou = user.get('orgUnitPath')
-                if ('test' not in ou.lower()) and ('fbla' not in ou.lower()) and ('pre students' not in ou.lower()):  # ignore any accounts that are in an OU that contains the word test, fbla, pre students
-                    try:
-                        email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
-                        homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID from the custom attributes in their profile
-                        gradYear = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_GRAD_YEAR))  # get their grad year from the custom attributes in their profile
-
-                        print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}')
-                        print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}', file=log)
-                        addBodyDict = {'email' : email, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
-                    except Exception as er:
-                        print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}')
-                        print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}', file=log)
-
-                    try:  # Check to see if they are a member of the all student group, if not we need to add them
-                        if not memberLists.get(allStudentGroup).get(email):
-                            print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added')
-                            print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added', file=log)
-                            service.members().insert(groupKey=allStudentGroup, body=addBodyDict).execute()  # do the addition to the group
-                        # else: # debug
-                        #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed')
-                        #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed', file=log)
-                    except Exception as er:
-                        print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}')
-                        print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}', file=log)
-
-                    # go through each school code : abbreviation pair to check membership for each building group
-                    for schoolEntry in schoolAbbreviations.keys():
+    try:
+        userToken =  ''
+        queryString = "orgUnitPath='" + org_unit + "'"  # have to have the orgUnit enclosed by its own set of quotes in order to work
+        print(queryString)
+        while userToken is not None:  # do a while loop while we still have the next page token to get more results with
+            userResults = service.users().list(customer='my_customer', orderBy='email', projection='full', pageToken=userToken, query=queryString).execute()
+            userToken = userResults.get('nextPageToken')
+            users = userResults.get('users', [])
+            for user in users:
+                # print(user) # debug
+                try:
+                    ou = user.get('orgUnitPath')
+                    if ('test' not in ou.lower()) and ('fbla' not in ou.lower()) and ('pre students' not in ou.lower()):  # ignore any accounts that are in an OU that contains the word test, fbla, pre students
                         try:
-                            schoolGroupEmail = schoolAbbreviations.get(schoolEntry) + studentSuffix + emailSuffix
-                            if schoolEntry == homeschool:  # if the school id number we are currently is their school, they should be a part of that school's groups
-                                if not memberLists.get(schoolGroupEmail).get(email):  # if they are not a member of the group
-                                    print(f'INFO: {email} is currently not a member of {schoolGroupEmail}, will be added')
-                                    print(f'INFO: {email} is currently not a member of {schoolGroupEmail}, will be added', file=log)
-                                    service.members().insert(groupKey=schoolGroupEmail, body=addBodyDict).execute()  # do the addition to the group
-                                # else: # debug
-                                #     print(f'INFO: {email} is already a part of {schoolGroupEmail}, no action needed')
-                                #     print(f'INFO: {email} is already a part of {schoolGroupEmail}, no action needed', file=log)
-                            else:  # if the current school entry is not their school, we need to make sure they are NOT part of that schools groups and remove them if they are
-                                if memberLists.get(schoolGroupEmail).get(email):  # if they are a member of the group
-                                    if memberLists.get(schoolGroupEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                                        print(f'INFO: {email} should not be a member of {schoolGroupEmail}, will be removed')
-                                        print(f'INFO: {email} should not be a member of {schoolGroupEmail}, will be removed', file=log)
-                                        service.members().delete(groupKey=schoolGroupEmail, memberKey=email).execute()  # do the removal from the group
-                                    else:  # if they are an elevated member just give a warning
-                                        print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed')
-                                        print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed', file=log)
-                        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
-                            status = er.status_code
-                            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}')
-                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}', file=log)
-                        except Exception as er:
-                            print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}')
-                            print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}', file=log)
+                            email = user.get('primaryEmail')  # .get allows us to retrieve the value of one of the sub results
+                            homeschool = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_SCHOOL))  # get their homeschool ID from the custom attributes in their profile
+                            gradYear = str(user.get('customSchemas').get(CUSTOM_ATTRIBUTE_SYNC_CATEGORY).get(CUSTOM_ATTRIBUTE_GRAD_YEAR))  # get their grad year from the custom attributes in their profile
 
-                    # go through each grad year group to check membership
-                    for year in gradYears:
-                        try:
-                            gradYearEmail = gradYearPrefix + str(year) + emailSuffix
-                            if str(year) == gradYear:  # if the year we are currently on is their grad year, they should be a part of the group
-                                if not memberLists.get(gradYearEmail).get(email):
-                                    print(f'INFO: {email} is currently not a member of {gradYearEmail}, will be added')
-                                    print(f'INFO: {email} is currently not a member of {gradYearEmail}, will be added', file=log)
-                                    service.members().insert(groupKey=gradYearEmail, body=addBodyDict).execute()  # do the addition to the group
-                                # else: # debug
-                                #     print(f'INFO: {email} is already a part of {gradYearEmail}, no action needed')
-                                #     print(f'INFO: {email} is already a part of {gradYearEmail}, no action needed', file=log)
-                            else:  # if the year is not their grad year, we need to make sure they are NOT a part of that group
-                                if memberLists.get(gradYearEmail).get(email):
-                                    if memberLists.get(gradYearEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
-                                        print(f'INFO: {email} should not be a member of {gradYearEmail}, will be removed')
-                                        print(f'INFO: {email} should not be a member of {gradYearEmail}, will be removed', file=log)
-                                        service.members().delete(groupKey=gradYearEmail, memberKey=email).execute()  # do the removal from the group
-                                    else:  # if they are an elevated member just give a warning
-                                        print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed')
-                                        print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed', file=log)
-                        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
-                            status = er.status_code
-                            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}')
-                            print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                            print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}')
+                            print(f'DBUG: {email} should be a part of {allStudentGroup}, {schoolAbbreviations.get(homeschool) + studentSuffix + emailSuffix} and {gradYearPrefix + gradYear + emailSuffix}', file=log)
+                            addBodyDict = {'email' : email, 'role' : 'MEMBER'}  # define a dict for the member email and role type, which is this case is just their email and the normal member role
                         except Exception as er:
-                            print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
-                            print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
-            except Exception as er:
-                print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}')
-                print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}',file=log)
+                            print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}')
+                            print(f'ERROR on {user["primaryEmail"]} while getting homeschool and gradyear, make sure custom attributes and environment variables are populated: {er}', file=log)
+
+                        try:  # Check to see if they are a member of the all student group, if not we need to add them
+                            if not memberLists.get(allStudentGroup).get(email):
+                                print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added')
+                                print(f'INFO: {email} is currently not a member of {allStudentGroup}, will be added', file=log)
+                                service.members().insert(groupKey=allStudentGroup, body=addBodyDict).execute()  # do the addition to the group
+                            # else: # debug
+                            #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed')
+                            #     print(f'INFO: {email} is already a part of {allStudentGroup}, no action needed', file=log)
+                        except Exception as er:
+                            print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}')
+                            print(f'Error on {user["primaryEmail"]} while procssing all student group, make sure group exists and is defined by environment variable: {er}', file=log)
+
+                        # go through each school code : abbreviation pair to check membership for each building group
+                        for schoolEntry in schoolAbbreviations.keys():
+                            try:
+                                schoolGroupEmail = schoolAbbreviations.get(schoolEntry) + studentSuffix + emailSuffix
+                                if schoolEntry == homeschool:  # if the school id number we are currently is their school, they should be a part of that school's groups
+                                    if not memberLists.get(schoolGroupEmail).get(email):  # if they are not a member of the group
+                                        print(f'INFO: {email} is currently not a member of {schoolGroupEmail}, will be added')
+                                        print(f'INFO: {email} is currently not a member of {schoolGroupEmail}, will be added', file=log)
+                                        service.members().insert(groupKey=schoolGroupEmail, body=addBodyDict).execute()  # do the addition to the group
+                                    # else: # debug
+                                    #     print(f'INFO: {email} is already a part of {schoolGroupEmail}, no action needed')
+                                    #     print(f'INFO: {email} is already a part of {schoolGroupEmail}, no action needed', file=log)
+                                else:  # if the current school entry is not their school, we need to make sure they are NOT part of that schools groups and remove them if they are
+                                    if memberLists.get(schoolGroupEmail).get(email):  # if they are a member of the group
+                                        if memberLists.get(schoolGroupEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
+                                            print(f'INFO: {email} should not be a member of {schoolGroupEmail}, will be removed')
+                                            print(f'INFO: {email} should not be a member of {schoolGroupEmail}, will be removed', file=log)
+                                            service.members().delete(groupKey=schoolGroupEmail, memberKey=email).execute()  # do the removal from the group
+                                        else:  # if they are an elevated member just give a warning
+                                            print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed')
+                                            print(f'WARN: {email} is an elevated role in {schoolGroupEmail} and will NOT be removed', file=log)
+                            except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                                status = er.status_code
+                                details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}')
+                                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in building group {schoolEntry}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                            except Exception as er:
+                                print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}')
+                                print(f'ERROR on {user["primaryEmail"]} while processing group for buidling {schoolEntry}: {er}', file=log)
+
+                        # go through each grad year group to check membership
+                        for year in gradYears:
+                            try:
+                                gradYearEmail = gradYearPrefix + str(year) + emailSuffix
+                                if str(year) == gradYear:  # if the year we are currently on is their grad year, they should be a part of the group
+                                    if not memberLists.get(gradYearEmail).get(email):
+                                        print(f'INFO: {email} is currently not a member of {gradYearEmail}, will be added')
+                                        print(f'INFO: {email} is currently not a member of {gradYearEmail}, will be added', file=log)
+                                        service.members().insert(groupKey=gradYearEmail, body=addBodyDict).execute()  # do the addition to the group
+                                    # else: # debug
+                                    #     print(f'INFO: {email} is already a part of {gradYearEmail}, no action needed')
+                                    #     print(f'INFO: {email} is already a part of {gradYearEmail}, no action needed', file=log)
+                                else:  # if the year is not their grad year, we need to make sure they are NOT a part of that group
+                                    if memberLists.get(gradYearEmail).get(email):
+                                        if memberLists.get(gradYearEmail).get(email) == 'MEMBER':  # check and see if they are just a member, if so remove them, otherwise we do not want to touch the managers and owners
+                                            print(f'INFO: {email} should not be a member of {gradYearEmail}, will be removed')
+                                            print(f'INFO: {email} should not be a member of {gradYearEmail}, will be removed', file=log)
+                                            service.members().delete(groupKey=gradYearEmail, memberKey=email).execute()  # do the removal from the group
+                                        else:  # if they are an elevated member just give a warning
+                                            print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed')
+                                            print(f'WARN: {email} is an elevated role in {gradYearEmail} and will NOT be removed', file=log)
+                            except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                                status = er.status_code
+                                details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}')
+                                print(f'ERROR {status} from Google API while processing user {user["primaryEmail"]} in grad year group {year}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                            except Exception as er:
+                                print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
+                                print(f'ERROR on {user["primaryEmail"]} while processing grad year group for {year}: {er}')
+                except Exception as er:
+                    print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}')
+                    print(f'ERROR: on {user["primaryEmail"]} while processing groups - {er}',file=log)
+    except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+        status = er.status_code
+        details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+        print(f'ERROR {status} from Google API while getting users in OU {org_unit}: {details["message"]}. Reason: {details["reason"]}')
+        print(f'ERROR {status} from Google API while getting users in OU {org_unit}: {details["message"]}. Reason: {details["reason"]}',file=log)
+    except Exception as er:
+        print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
+        print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
+    
+
 
 if __name__ == '__main__':  # main file execution
     with oracledb.connect(user=DB_UN, password=DB_PW, dsn=DB_CS) as con:  # create the connecton to the database
