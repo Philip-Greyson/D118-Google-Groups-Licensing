@@ -47,7 +47,7 @@ licenseService = build('licensing', 'v1', credentials=creds)
 
 
 PRODUCT_ID = '101031'  # https://developers.google.com/admin-sdk/licensing/v1/how-tos/products
-SKUS = ['1010310006', '1010310005']  # 1010310006 is teacher, 1010310005 is student
+SKUS = ['1010310008', '1010310009']  # 1010310009 is teacher, 1010310008 is student
 CUSTOMER = 'd118.org'
 
 # get a list of all license assignments for given product and sku, go through each user with that license and check if they are suspended, if so remove the license
