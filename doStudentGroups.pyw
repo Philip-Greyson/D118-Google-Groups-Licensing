@@ -204,7 +204,6 @@ def process_groups(org_unit: str) -> None:
     except Exception as er:
         print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
         print(f'ERROR while performing query to get users in OU {org_unit}: {er}')
-    
 
 
 if __name__ == '__main__':  # main file execution
@@ -226,6 +225,7 @@ if __name__ == '__main__':  # main file execution
                     schoolNum = str(school[1])
                     # print(f'School {schoolAbbrev} - Code {schoolNum}')
                     schoolAbbreviations.update({schoolNum : schoolAbbrev})
+                schoolAbbreviations.update({'1':'sum'})  # manually add an additional building that is usually excluded from state reporting
                 print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}')
                 print(f'DBUG: Schools numbers and their abbreviations: {schoolAbbreviations}', file=log)
 
