@@ -243,6 +243,7 @@ if __name__ == '__main__':  # main file execution
                     # print(f'School {schoolAbbrev} - Code {schoolNum}')
                     schoolAbbreviations.update({schoolNum : schoolAbbrev})
                 # schoolAbbreviations.update({'0': 'd118'} ) # add in another abbreviation for the district wide groups
+                schoolAbbreviations.update({'300': 'tran'})  # add in another abbreviation for the transportation staff building/group
                 print(f'DBUG: School IDs and abbreviations: {schoolAbbreviations}')
                 print(f'DBUG: School IDs and abbreviations: {schoolAbbreviations}', file=log)
 
