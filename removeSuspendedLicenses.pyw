@@ -67,21 +67,30 @@ def remove_licenses(product: str, sku: str) -> None:
                     email = user.get('userId')  # get the email from result
                     userResults = service.users().get(userKey=email).execute()  # do a query for their email to get their Google profile info
                     if userResults.get('suspended'):  # if the suspended flag is true on their account, they should have a license removed
-                        print(f'INFO: {email} is suspended and should not have a license, removing!')
-                        print(f'INFO: {email} is suspended and should not have a license, removing!', file=log)
-                        result = licenseService.licenseAssignments().delete(productId=product, skuId=sku, userId=email).execute()  # does the actual removal of the license
-                        print(f'DBUG: {result}')  # debug
+                        try:
+                            print(f'INFO: {email} is suspended and should not have a license, removing!')
+                            print(f'INFO: {email} is suspended and should not have a license, removing!', file=log)
+                            result = licenseService.licenseAssignments().delete(productId=product, skuId=sku, userId=email).execute()  # does the actual removal of the license
+                            print(f'DBUG: {result}')  # debug
+                        except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
+                            status = er.status_code
+                            details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
+                            print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}')
+                            print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                        except Exception as er:
+                            print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
+                            print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
                     else:  # debug
                         print(f'DBUG: {email} is enabled, no changes needed')
                         print(f'DBUG: {email} is enabled, no changes needed', file=log)
                 except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
                         status = er.status_code
                         details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
-                        print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}')
-                        print(f'ERROR {status} on {user["userId"]} while trying to remove product {product} and SKU {sku}: {details["message"]}. Reason: {details["reason"]}', file=log)
+                        print(f'ERROR {status} on {user["userId"]} while trying to get profile information: {details["message"]}. Reason: {details["reason"]}')
+                        print(f'ERROR {status} on {user["userId"]} while trying to get profile information: {details["message"]}. Reason: {details["reason"]}', file=log)
                 except Exception as er:
-                    print(f'ERROR on {user["userId"]} while trying to remove product {product} and SKU {sku}: {er}')
-                    print(f'ERROR on {user["userID"]} while trying to remove product {product} and SKU {sku}: {er}', file=log)
+                    print(f'ERROR on {user["userId"]} while trying to get profile information: {er}')
+                    print(f'ERROR on {user["userID"]} while trying to get profile information', file=log)
     except HttpError as er:   # catch Google API http errors, get the specific message and reason from them for better logging
         status = er.status_code
         details = er.error_details[0]  # error_details returns a list with a dict inside of it, just strip it to the first dict
